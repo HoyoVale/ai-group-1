@@ -51,7 +51,7 @@ def main():
     parser.add_argument(
         "--site",
         type=str,
-        choices=["wiki", "baike", "baidu", "bilibili", "douyin", "sohu", "quark", "general"],
+        choices=["wiki", "baike", "baidu", "bilibili", "douyin", "sohu", "quark", "quora", "csdn", "cnblogs", "juejin", "segmentfault", "github", "gitee", "zhihu", "stackoverflow", "trafilatura", "general"],
         default=None,
         help="Specify site type for extraction (auto-detected if not provided)"
     )

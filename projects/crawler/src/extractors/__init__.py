@@ -25,6 +25,8 @@ from .gitee import GiteeExtractor
 from .zhihu import ZhihuExtractor
 from .stackoverflow import StackoverflowExtractor
 from .quora import QuoraExtractor
+from .trafilatura import TrafilaturaExtractor
+from .crawl4ai import Crawl4AIExtractor
 
 
 # Registry of all extractors with their priorities
@@ -97,6 +99,8 @@ def _get_extractor_by_type(site_type: str) -> Optional[Type[BaseExtractor]]:
         "gitee": GiteeExtractor,
         "zhihu": ZhihuExtractor,
         "stackoverflow": StackoverflowExtractor,
+        "trafilatura": TrafilaturaExtractor,
+        "crawl4ai": Crawl4AIExtractor,
         "general": GeneralExtractor,
     }
     
@@ -174,6 +178,8 @@ __all__ = [
     "ZhihuExtractor",
     "StackoverflowExtractor",
     "QuoraExtractor",
+    "TrafilaturaExtractor",
+    "Crawl4AIExtractor",
     "get_extractor",
     "get_extractor_for_playwright",
     "EXTRACTOR_REGISTRY",
