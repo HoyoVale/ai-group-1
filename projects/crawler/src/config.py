@@ -25,5 +25,10 @@ DEFAULT_HEADERS = {
     "Connection": "keep-alive",
 }
 
+# Proxy settings (Clash Verge)
+PROXY_ENABLED = True
+PROXY_HTTP = "http://127.0.0.1:7897"
+PROXY_SOCKS5 = "socks5://127.0.0.1:7897"
+
 # Supported exporters
 EXPORT_FORMATS = ["json", "csv", "markdown", "pdf", "png", "jpg"]

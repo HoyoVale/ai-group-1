@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from urllib.parse import urlparse
 import requests
 
-from .config import DEFAULT_TIMEOUT, MAX_RETRIES, DEFAULT_HEADERS
+from .config import DEFAULT_TIMEOUT, MAX_RETRIES, DEFAULT_HEADERS, PROXY_ENABLED, PROXY_HTTP, PROXY_SOCKS5
 from .extractors import get_extractor
 from .exporters import export_content
 
@@ -21,6 +21,14 @@ class Crawler:
         self.use_playwright = use_playwright
         self.session = requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
+        
+        # Configure proxy
+        if PROXY_ENABLED:
+            self.session.proxies = {
+                "http": PROXY_HTTP,
+                "https": PROXY_HTTP,
+            }
+        
         self.playwright_browser = None
     
     def _init_playwright(self):
@@ -28,7 +36,15 @@ class Crawler:
         if self.playwright_browser is None:
             from playwright.sync_api import sync_playwright
             self.playwright_sync = sync_playwright().start()
-            self.playwright_browser = self.playwright_sync.chromium.launch(headless=True)
+            
+            # Configure proxy for Playwright
+            launch_options = {"headless": True}
+            if PROXY_ENABLED:
+                launch_options["proxy"] = {
+                    "server": PROXY_HTTP,
+                }
+            
+            self.playwright_browser = self.playwright_sync.chromium.launch(**launch_options)
         return self.playwright_browser
     
     def crawl(self, url: str) -> Dict:
