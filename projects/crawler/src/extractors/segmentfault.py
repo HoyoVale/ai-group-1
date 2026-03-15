@@ -2,6 +2,7 @@
 """
 SegmentFault Extractor
 """
+import json
 import re
 from typing import Dict, List
 from urllib.parse import urljoin, urlparse
@@ -19,6 +20,9 @@ class SegmentfaultExtractor(BaseExtractor):
         "www.segmentfault.com",
         "m.segmentfault.com"
     ]
+    
+    # Minimum content length threshold
+    MIN_CONTENT_LENGTH = 100
     
     def extract(self, url: str, html: str) -> Dict:
         soup = BeautifulSoup(html, 'html.parser')
@@ -133,25 +137,88 @@ class SegmentfaultExtractor(BaseExtractor):
         return ""
     
     def _extract_content(self, soup: BeautifulSoup) -> str:
+        # Try ld+json structured data first
+        ld_content = self._extract_ld_json(soup)
+        if ld_content and len(ld_content) > self.MIN_CONTENT_LENGTH:
+            return ld_content
+        
         # Try article content - SegmentFault uses .article-content or .post-content
         content_div = soup.find("div", class_=re.compile(r"article-content|post-content|article-body|content|news__item--content"))
         if content_div:
-            return content_div.get_text(separator="\n", strip=True)
+            text = content_div.get_text(separator="\n", strip=True)
+            if len(text) > self.MIN_CONTENT_LENGTH:
+                return text
         
         # Try .content
         content = soup.find(class_=re.compile(r"content|article"))
         if content:
-            return content.get_text(separator="\n", strip=True)
+            text = content.get_text(separator="\n", strip=True)
+            if len(text) > self.MIN_CONTENT_LENGTH:
+                return text
         
         # Try article tag
         article = soup.find("article")
         if article:
-            return article.get_text(separator="\n", strip=True)
+            text = article.get_text(separator="\n", strip=True)
+            if len(text) > self.MIN_CONTENT_LENGTH:
+                return text
         
         # Try main content
         main = soup.find("main")
         if main:
-            return main.get_text(separator="\n", strip=True)
+            text = main.get_text(separator="\n", strip=True)
+            if len(text) > self.MIN_CONTENT_LENGTH:
+                return text
+        
+        # Fallback: return whatever we found, even if short
+        return ld_content if ld_content else ""
+    
+    def _extract_ld_json(self, soup: BeautifulSoup) -> str:
+        """Extract content from ld+json structured data"""
+        # Find all script tags with ld+json
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string)
+                
+                # Handle array or object
+                if isinstance(data, list):
+                    for item in data:
+                        content = self._parse_ld_json_item(item)
+                        if content:
+                            return content
+                else:
+                    content = self._parse_ld_json_item(data)
+                    if content:
+                        return content
+            except (json.JSONDecodeError, AttributeError, TypeError):
+                continue
+        
+        return ""
+    
+    def _parse_ld_json_item(self, data: dict) -> str:
+        """Parse ld+json data to extract article content"""
+        if not isinstance(data, dict):
+            return ""
+        
+        # Try articleBody field
+        if "articleBody" in data:
+            return data["articleBody"]
+        
+        # Try text field
+        if "text" in data:
+            return data["text"]
+        
+        # Try description field
+        if "description" in data:
+            return data["description"]
+        
+        # Try nested articleBody
+        if "@graph" in data:
+            for item in data["@graph"]:
+                if isinstance(item, dict):
+                    content = self._parse_ld_json_item(item)
+                    if content:
+                        return content
         
         return ""
     

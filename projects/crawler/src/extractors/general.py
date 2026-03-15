@@ -15,6 +15,27 @@ class GeneralExtractor(BaseExtractor):
     priority = 10
     supported_domains = []  # Default fallback
     
+    # Minimum content length threshold
+    MIN_CONTENT_LENGTH = 100
+    
+    # Video site domains (content may rely on video rather than text)
+    VIDEO_DOMAINS = [
+        "youtube.com",
+        "youtu.be",
+        "bilibili.com",
+        "vimeo.com",
+        "twitch.tv",
+        "tiktok.com",
+        "douyin.com",
+        "youku.com",
+        "iqiyi.com",
+        "qq.com"
+    ]
+    
+    def _is_video_site(self, url: str) -> bool:
+        """Check if URL is a video site"""
+        return any(domain in url.lower() for domain in self.VIDEO_DOMAINS)
+    
     def extract(self, url: str, html: str) -> Dict:
         soup = BeautifulSoup(html, 'html.parser')
         
@@ -27,6 +48,15 @@ class GeneralExtractor(BaseExtractor):
         
         # Extract main content
         content = self._extract_content(soup)
+        
+        # Check if content is sufficient (for non-video sites)
+        is_video_site = self._is_video_site(url)
+        if not is_video_site and len(content) < self.MIN_CONTENT_LENGTH:
+            # Try to enhance with images as fallback for text content
+            images = self._extract_images(soup, url)
+            if images:
+                # Include image info in meta when text is insufficient
+                content = content + "\n\n[Images available: " + str(len(images)) + "]"
         
         # Extract images
         images = self._extract_images(soup, url)

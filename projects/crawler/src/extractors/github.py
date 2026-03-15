@@ -2,6 +2,7 @@
 """
 GitHub Extractor
 """
+import json
 import re
 from typing import Dict, List
 from urllib.parse import urljoin, urlparse
@@ -18,6 +19,9 @@ class GithubExtractor(BaseExtractor):
         "github.com",
         "githubusercontent.com"
     ]
+    
+    # Minimum content length threshold
+    MIN_CONTENT_LENGTH = 100
     
     def extract(self, url: str, html: str) -> Dict:
         soup = BeautifulSoup(html, 'html.parser')
@@ -158,17 +162,94 @@ class GithubExtractor(BaseExtractor):
         # Try to find readme in the repository
         readme_div = soup.find("div", id="readme")
         if readme_div:
-            return readme_div.get_text(separator="\n", strip=True)
+            text = readme_div.get_text(separator="\n", strip=True)
+            if len(text) > self.MIN_CONTENT_LENGTH:
+                return text
         
         # Try article with markdown-body
         article = soup.find("article", class_="markdown-body")
         if article:
-            return article.get_text(separator="\n", strip=True)
+            text = article.get_text(separator="\n", strip=True)
+            if len(text) > self.MIN_CONTENT_LENGTH:
+                return text
         
         # Try general markdown body
         md_body = soup.find("div", class_="markdown-body")
         if md_body:
-            return md_body.get_text(separator="\n", strip=True)
+            text = md_body.get_text(separator="\n", strip=True)
+            if len(text) > self.MIN_CONTENT_LENGTH:
+                return text
+        
+        # Try to extract from data-target="react-app.embeddedData"
+        json_readme = self._extract_from_embedded_data(soup)
+        if json_readme:
+            return json_readme
+        
+        return ""
+    
+    def _extract_from_embedded_data(self, soup: BeautifulSoup) -> str:
+        """Extract README from react-app.embeddedData JSON"""
+        # Find element with data-target="react-app.embeddedData"
+        target_elem = soup.find("script", attrs={"data-target": "react-app.embeddedData", "type": "application/json"})
+        if target_elem:
+            try:
+                data = target_elem.string
+                if data:
+                    # Parse as JSON
+                    data = json.loads(data)
+                    
+                    # Navigate to README content
+                    # Common paths: payload.readme, data.payload, etc.
+                    if isinstance(data, dict):
+                        # Try common paths
+                        for path in ["payload", "data", "readme", "content"]:
+                            if path in data:
+                                content = data[path]
+                                if isinstance(content, dict):
+                                    # Try nested paths
+                                    for key in ["body", "text", "content", "markdown"]:
+                                        if key in content:
+                                            return content[key]
+                                elif isinstance(content, str):
+                                    return content
+                        
+                        # If we have a payload with nested structure
+                        if "payload" in data:
+                            payload = data["payload"]
+                            if isinstance(payload, dict):
+                                for key in ["readme", "readmeBlob", "body"]:
+                                    if key in payload:
+                                        val = payload[key]
+                                        if isinstance(val, dict):
+                                            if "text" in val:
+                                                return val["text"]
+                                            elif "body" in val:
+                                                return val["body"]
+                                        elif isinstance(val, str):
+                                            return val
+            except (json.JSONDecodeError, AttributeError, TypeError, KeyError):
+                pass
+        
+        # Try div element with data-target (fallback)
+        target_elem = soup.find(attrs={"data-target": "react-app.embeddedData"})
+        if target_elem:
+            try:
+                # Try to get data from various attributes
+                data = target_elem.get("data-value") or target_elem.get("data") or target_elem.string
+                if data:
+                    # Parse as JSON
+                    if isinstance(data, str):
+                        data = json.loads(data)
+                    
+                    # Navigate to README content
+                    if isinstance(data, dict):
+                        for path in ["payload", "data", "readme", "content"]:
+                            if path in data:
+                                content = data[path]
+                                if isinstance(content, str):
+                                    return content
+            except (json.JSONDecodeError, AttributeError, TypeError, KeyError):
+                pass
         
         return ""
     

@@ -22,6 +22,18 @@ class StackoverflowExtractor(BaseExtractor):
         "serverfault.com"
     ]
     
+    # Minimum content length threshold
+    MIN_CONTENT_LENGTH = 100
+    
+    def _clean_content(self, content: str) -> str:
+        """Clean content by removing excessive newlines"""
+        if not content:
+            return ""
+        # Replace multiple consecutive newlines with single newline
+        content = re.sub(r'\n+', '\n', content)
+        # Strip leading/trailing whitespace
+        return content.strip()
+    
     def extract(self, url: str, html: str) -> Dict:
         soup = BeautifulSoup(html, 'html.parser')
         
@@ -40,8 +52,9 @@ class StackoverflowExtractor(BaseExtractor):
         # Extract title
         title = self._extract_title(soup)
         
-        # Extract question content
+        # Extract question content (will be cleaned later)
         content = self._extract_question_content(soup)
+        content = self._clean_content(content)
         
         # Extract author
         author = self._extract_author(soup)
@@ -254,10 +267,11 @@ class StackoverflowExtractor(BaseExtractor):
             if answer_id:
                 answer["id"] = answer_id.replace("answer-", "")
             
-            # Content
+            # Content with cleaning
             content_div = div.find("div", class_=re.compile(r"post-text|answer-body"))
             if content_div:
-                answer["content"] = content_div.get_text(separator="\n", strip=True)[:1000]
+                raw_content = content_div.get_text(separator="\n", strip=True)[:1000]
+                answer["content"] = self._clean_content(raw_content)
             
             # Author
             sig = div.find("div", class_=re.compile(r"user-card|post-signature"))
