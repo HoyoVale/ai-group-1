@@ -18,6 +18,8 @@
   - Markdown
   - PDF（通过 Markdown）
   - PNG/JPG（图片下载）
+- ⚡ JavaScript 渲染支持（通过 Playwright）
+  - 支持 Bilibili、抖音、微博等动态网站
 
 ## 环境配置
 
@@ -53,6 +55,9 @@ python main.py <URL> -f json -o my_output
 
 # 输出到 ~/Downloads
 python main.py <URL> -f json -d downloads
+
+# 使用 Playwright 渲染 JavaScript 页面（B站、抖音等）
+python main.py <URL> -f json --playwright
 
 # 查看支持的格式
 python main.py --list-formats
@@ -117,7 +122,7 @@ crawler/
 
 ## TODO
 
-- [ ] 添加 Playwright 支持（JavaScript 渲染页面）
+- [x] 添加 Playwright 支持（JavaScript 渲染页面）
 - [ ] 添加代理支持
 - [ ] 添加爬取速率限制
 - [ ] 添加更多网站专用提取器

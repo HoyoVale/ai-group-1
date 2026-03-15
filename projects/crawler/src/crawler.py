@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Crawler Core
+Crawler Core with Playwright Support
 """
 import time
 from typing import Dict, List, Optional
@@ -13,18 +13,32 @@ from .exporters import export_content
 
 
 class Crawler:
-    """Web Crawler"""
+    """Web Crawler with optional JavaScript rendering"""
     
-    def __init__(self, timeout: int = DEFAULT_TIMEOUT, max_retries: int = MAX_RETRIES):
+    def __init__(self, timeout: int = DEFAULT_TIMEOUT, max_retries: int = MAX_RETRIES, use_playwright: bool = False):
         self.timeout = timeout
         self.max_retries = max_retries
+        self.use_playwright = use_playwright
         self.session = requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
+        self.playwright_browser = None
+    
+    def _init_playwright(self):
+        """Initialize Playwright browser"""
+        if self.playwright_browser is None:
+            from playwright.sync_api import sync_playwright
+            self.playwright_sync = sync_playwright().start()
+            self.playwright_browser = self.playwright_sync.chromium.launch(headless=True)
+        return self.playwright_browser
     
     def crawl(self, url: str) -> Dict:
         """Crawl a URL and extract content"""
-        # Fetch HTML
+        # Try requests first, then playwright if needed
         html = self._fetch(url)
+        
+        if not html or self._needs_javascript(url, html):
+            if self.use_playwright or self._should_use_playwright(url):
+                html = self._fetch_with_playwright(url)
         
         if not html:
             return {"error": "Failed to fetch URL", "url": url}
@@ -37,10 +51,63 @@ class Crawler:
         
         return content
     
-    def crawl_and_export(self, url: str, formats: List[str], filename: str = None, output_dir = None) -> Dict:
+    def _should_use_playwright(self, url: str) -> bool:
+        """Check if URL likely needs JavaScript rendering"""
+        # Known dynamic sites
+        dynamic_domains = [
+            "bilibili.com",
+            "douyin.com",
+            "weibo.com",
+            "twitter.com",
+            "x.com",
+            "facebook.com",
+            "instagram.com",
+            "reddit.com",
+            "taobao.com",
+            "jd.com",
+            "tmall.com",
+        ]
+        parsed = urlparse(url)
+        return any(domain in parsed.netloc.lower() for domain in dynamic_domains)
+    
+    def _needs_javascript(self, url: str, html: str) -> bool:
+        """Check if HTML suggests JavaScript rendering is needed"""
+        # Check for common JavaScript indicators
+        js_indicators = [
+            '<script',
+            'JavaScript is not available',
+            'window.__INITIAL_STATE__',
+            'window.__PRELOAD_STATE__',
+        ]
+        return any(indicator in html for indicator in js_indicators)
+    
+    def _fetch_with_playwright(self, url: str) -> Optional[str]:
+        """Fetch HTML using Playwright (for JavaScript-rendered pages)"""
+        try:
+            browser = self._init_playwright()
+            page = browser.new_page()
+            page.goto(url, timeout=self.timeout * 1000)
+            # Wait for network to be idle
+            page.wait_for_load_state("networkidle", timeout=30000)
+            html = page.content()
+            page.close()
+            return html
+        except Exception as e:
+            print(f"Playwright failed to fetch {url}: {e}")
+            return None
+    
+    def crawl_and_export(self, url: str, formats: List[str], filename: str = None, output_dir = None, use_playwright: bool = False) -> Dict:
         """Crawl URL and export to specified formats"""
+        # Temporarily enable playwright if requested
+        original_playwright = self.use_playwright
+        if use_playwright:
+            self.use_playwright = True
+        
         # Crawl content
         content = self.crawl(url)
+        
+        # Restore original setting
+        self.use_playwright = original_playwright
         
         if "error" in content:
             return content
@@ -71,18 +138,21 @@ class Crawler:
         return None
     
     def close(self):
-        """Close the session"""
+        """Close the session and browser"""
         self.session.close()
+        if self.playwright_browser:
+            self.playwright_browser.close()
+            self.playwright_sync.stop()
 
 
-def crawl(url: str, formats: List[str] = None, filename: str = None, output_dir = None) -> Dict:
+def crawl(url: str, formats: List[str] = None, filename: str = None, output_dir = None, use_playwright: bool = False) -> Dict:
     """Convenience function to crawl a URL"""
     if formats is None:
         formats = ["json"]
     
-    crawler = Crawler()
+    crawler = Crawler(use_playwright=use_playwright)
     try:
-        result = crawler.crawl_and_export(url, formats, filename, output_dir)
+        result = crawler.crawl_and_export(url, formats, filename, output_dir, use_playwright=use_playwright)
         return result
     finally:
         crawler.close()

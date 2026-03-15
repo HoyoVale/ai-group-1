@@ -43,6 +43,11 @@ def main():
         action="store_true",
         help="List supported export formats"
     )
+    parser.add_argument(
+        "--playwright", "-p",
+        action="store_true",
+        help="Use Playwright for JavaScript-rendered pages"
+    )
     
     args = parser.parse_args()
     
@@ -65,7 +70,8 @@ def main():
         url=args.url,
         formats=args.formats,
         filename=args.output,
-        output_dir=output_dir
+        output_dir=output_dir,
+        use_playwright=args.playwright
     )
     
     if "error" in result:
