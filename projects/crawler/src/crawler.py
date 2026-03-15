@@ -3,6 +3,7 @@
 Crawler Core with Playwright Support
 """
 import time
+import random
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 import requests
@@ -10,6 +11,13 @@ import requests
 from .config import DEFAULT_TIMEOUT, MAX_RETRIES, DEFAULT_HEADERS, PROXY_ENABLED, PROXY_HTTP, PROXY_SOCKS5
 from .extractors import get_extractor, get_extractor_for_playwright
 from .exporters import export_content
+
+# Sites that block proxy connections - need to crawl without proxy
+NO_PROXY_DOMAINS = [
+    "csdn.net",
+    "juejin.cn",
+    "segmentfault.com",
+]
 
 
 class Crawler:
@@ -31,36 +39,87 @@ class Crawler:
             }
         
         self.playwright_browser = None
+        self.playwright_sync = None
+        self.stealth_instance = None
     
-    def _init_playwright(self):
-        """Initialize Playwright browser"""
+    def _use_proxy(self, url: str) -> bool:
+        """Check if we should use proxy for this URL"""
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        # Don't use proxy for sites that block it
+        for no_proxy in NO_PROXY_DOMAINS:
+            if no_proxy in domain:
+                return False
+        return PROXY_ENABLED
+    
+    def _init_playwright(self, stealth: bool = True):
+        """Initialize Playwright browser with optional stealth mode"""
         if self.playwright_browser is None:
             from playwright.sync_api import sync_playwright
             self.playwright_sync = sync_playwright().start()
             
             # Configure proxy for Playwright
-            launch_options = {"headless": True}
+            launch_options = {
+                "headless": True,
+                "args": ["--disable-blink-features=AutomationControlled"]
+            }
+            
             if PROXY_ENABLED:
-                launch_options["proxy"] = {
-                    "server": PROXY_HTTP,
-                }
+                # For now, we'll disable proxy globally and handle per-site
+                # If we need proxy, uncomment below:
+                # launch_options["proxy"] = {"server": PROXY_HTTP}
+                pass
             
             self.playwright_browser = self.playwright_sync.chromium.launch(**launch_options)
+            
+            # Apply stealth mode if requested
+            if stealth:
+                try:
+                    from playwright_stealth.stealth import Stealth
+                    self.stealth_instance = Stealth()
+                except ImportError:
+                    print("Warning: playwright_stealth not installed, continuing without stealth mode")
+                except Exception as e:
+                    print(f"Warning: Failed to initialize stealth mode: {e}")
+                    
         return self.playwright_browser
+    
+    def _needs_playwright(self, url: str, html: str, status_code: int = 200) -> bool:
+        """Check if we should use Playwright for this URL"""
+        # Check if explicitly requested
+        if self.use_playwright:
+            return True
+        
+        # Check site_type
+        if self.site_type in ["douyin", "csdn", "juejin"]:
+            return True
+        
+        # Check if URL is in known dynamic sites
+        if self._should_use_playwright(url):
+            return True
+        
+        # Check for 521 status (CSDN bot detection)
+        if status_code == 521:
+            return True
+        
+        # Check if HTML is empty or very small (possible JavaScript rendering needed)
+        if not html or len(html) < 1000:
+            return True
+        
+        # Check if HTML suggests JavaScript rendering is needed
+        if self._needs_javascript(url, html):
+            return True
+        
+        return False
     
     def crawl(self, url: str) -> Dict:
         """Crawl a URL and extract content"""
         # Try requests first, then playwright if needed
-        html = self._fetch(url)
+        html, status_code = self._fetch(url)
         
-        # Check if we should use playwright based on extractor requirements
-        needs_playwright = self.use_playwright or self._should_use_playwright(url)
-        if self.site_type == "douyin":
-            needs_playwright = True
-        
-        if not html or self._needs_javascript(url, html):
-            if needs_playwright:
-                html = self._fetch_with_playwright(url)
+        # Check if we should use playwright
+        if self._needs_playwright(url, html, status_code):
+            html = self._fetch_with_playwright(url)
         
         if not html:
             return {"error": "Failed to fetch URL", "url": url}
@@ -88,6 +147,10 @@ class Crawler:
             "taobao.com",
             "jd.com",
             "tmall.com",
+            # Anti-crawl sites that need stealth browser
+            "csdn.net",
+            "juejin.cn",
+            "segmentfault.com",
         ]
         parsed = urlparse(url)
         return any(domain in parsed.netloc.lower() for domain in dynamic_domains)
@@ -106,13 +169,36 @@ class Crawler:
     def _fetch_with_playwright(self, url: str) -> Optional[str]:
         """Fetch HTML using Playwright (for JavaScript-rendered pages)"""
         try:
-            browser = self._init_playwright()
-            page = browser.new_page()
-            page.goto(url, timeout=self.timeout * 1000)
-            # Wait for network to be idle
-            page.wait_for_load_state("networkidle", timeout=30000)
+            browser = self._init_playwright(stealth=True)
+            context = browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            )
+            page = context.new_page()
+            
+            # Apply stealth if available
+            if self.stealth_instance:
+                self.stealth_instance.apply_stealth_sync(page)
+            
+            # Add random delay before navigation to mimic human behavior
+            time.sleep(random.uniform(0.5, 2.0))
+            
+            # Navigate to the URL
+            page.goto(url, timeout=self.timeout * 1000, wait_until="domcontentloaded")
+            
+            # Wait for network to be idle (with longer timeout for slow sites)
+            try:
+                page.wait_for_load_state("networkidle", timeout=30000)
+            except Exception:
+                # Some sites never fully settle, continue anyway
+                pass
+            
+            # Additional wait for dynamic content
+            time.sleep(random.uniform(1.0, 3.0))
+            
             html = page.content()
             page.close()
+            context.close()
             return html
         except Exception as e:
             print(f"Playwright failed to fetch {url}: {e}")
@@ -148,28 +234,40 @@ class Crawler:
             "exports": results
         }
     
-    def _fetch(self, url: str) -> Optional[str]:
+    def _fetch(self, url: str):
         """Fetch HTML content from URL"""
-        for attempt in range(self.max_retries):
-            try:
-                response = self.session.get(url, timeout=self.timeout)
-                response.raise_for_status()
-                return response.text
-            except requests.exceptions.RequestException as e:
-                if attempt < self.max_retries - 1:
-                    time.sleep(1 * (attempt + 1))
-                    continue
-                print(f"Failed to fetch {url}: {e}")
-                return None
+        # For sites that block proxy, temporarily disable it
+        use_proxy = self._use_proxy(url)
+        original_proxies = self.session.proxies
         
-        return None
+        if not use_proxy:
+            self.session.proxies = None
+        
+        try:
+            for attempt in range(self.max_retries):
+                try:
+                    response = self.session.get(url, timeout=self.timeout)
+                    # Return both HTML and status code
+                    return response.text, response.status_code
+                except requests.exceptions.RequestException as e:
+                    if attempt < self.max_retries - 1:
+                        time.sleep(1 * (attempt + 1))
+                        continue
+                    print(f"Failed to fetch {url}: {e}")
+                    return None, 0
+            
+            return None, 0
+        finally:
+            # Restore proxies
+            self.session.proxies = original_proxies
     
     def close(self):
         """Close the session and browser"""
         self.session.close()
         if self.playwright_browser:
             self.playwright_browser.close()
-            self.playwright_sync.stop()
+            if self.playwright_sync:
+                self.playwright_sync.stop()
 
 
 def crawl(url: str, formats: List[str] = None, filename: str = None, output_dir = None, use_playwright: bool = False, site_type: str = None) -> Dict:
