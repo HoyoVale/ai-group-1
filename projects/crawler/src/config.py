@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent
-OUTPUT_DIR = PROJECT_ROOT / "output"
+OUTPUT_DIR = Path.home() / "Downloads" / "crawler-output"
 DOWNLOADS_DIR = Path.home() / "Downloads"
 
 # Create output directory if not exists

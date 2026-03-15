@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-HelloWorld - 在 Mac mini 屏幕上显示"你好世界！----HOYO"
-使用 Pillow 生成图片并用 macOS 预览显示
+HelloWorld - 在屏幕上显示"hello world --HOYO"
+使用 Pillow 生成图片并显示
 """
 
 from PIL import Image, ImageDraw, ImageFont
@@ -15,17 +15,18 @@ def create_hello_image():
     image = Image.new('RGB', (width, height), 'white')
     draw = ImageDraw.Draw(image)
     
-    # 尝试加载中文字体
-    text = "你好世界！----HOYO"
+    # 尝试加载字体
+    text = "hello world --HOYO"
     font_size = 48
     font = None
     
-    # macOS 常见中文字体路径
+    # Linux/WSL2 常见字体路径
     font_paths = [
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/Supplemental/PingFang.ttc",
-        "/Library/Fonts/STHeiti Light.ttc",
-        "/System/Library/Fonts/Supplemental/Songti.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/System/Library/Fonts/PingFang.ttc",  # macOS
+        "/Library/Fonts/Arial.ttf",  # macOS/Windows
     ]
     
     for font_path in font_paths:
@@ -38,7 +39,7 @@ def create_hello_image():
                 continue
     
     if font is None:
-        print("未找到中文字体，使用默认字体（中文可能显示异常）")
+        print("未找到合适字体，使用默认字体")
         font = ImageFont.load_default()
     
     # 计算文字位置（居中）
@@ -59,17 +60,37 @@ def create_hello_image():
     return output_path
 
 def show_image(image_path):
-    """在 macOS 上打开图片"""
+    """在不同平台上打开图片"""
+    system = sys.platform
+    
+    if system == "darwin":  # macOS
+        try:
+            subprocess.run(['open', '-a', 'Preview', image_path], check=True)
+            print("图片已在 Preview 中打开")
+            return
+        except subprocess.CalledProcessError:
+            pass
+    
+    # Linux/WSL2
     try:
-        subprocess.run(['open', '-a', 'Preview', image_path], check=True)
-        print("图片已在 Preview 中打开")
-    except subprocess.CalledProcessError as e:
-        print(f"打开图片失败：{e}")
-        # 尝试默认应用
-        subprocess.run(['open', image_path])
+        subprocess.run(['xdg-open', image_path], check=True)
+        print("图片已打开")
+        return
+    except subprocess.CalledProcessError:
+        pass
+    
+    # Windows (WSL2)
+    try:
+        subprocess.run(['cmd.exe', '/c', 'start', '', image_path.replace('/mnt/c/', 'C:\\').replace('/', '\\')], check=True)
+        print("图片已在 Windows 中打开")
+        return
+    except subprocess.CalledProcessError:
+        pass
+    
+    print(f"无法自动打开图片，请手动查看：{image_path}")
 
 def main():
-    print("生成 HelloWorld 图片...")
+    print("生成 hello world --HOYO 图片...")
     image_path = create_hello_image()
     print("正在打开图片...")
     show_image(image_path)

@@ -13,3 +13,6 @@ __pycache__/
 coverage/
 .idea/
 .vscode/
+# Crawler outputs
+Downloads/crawler-output/
+*.log

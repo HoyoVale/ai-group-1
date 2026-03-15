@@ -111,7 +111,8 @@ crawler/
 
 ## 输出路径
 
-- 项目目录：`~/ai-group-1/projects/crawler/output/`
+- 项目目录：`~/ai-group-1/projects/crawler/`（只包含代码）
+- 爬取结果：`~/Downloads/crawler-output/`
 - Downloads：`~/Downloads/`
 
 ## TODO

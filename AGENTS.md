@@ -8,6 +8,7 @@
 - 多个项目可以共存，但目录边界必须清楚
 - 共享脚本、模板、通用组件放在 `shared/`
 - 仓库级文档、计划、决策记录放在 `docs/`
+- OpenClaw 团队默认通过 `/home/hoyo/.openclaw/workspace-team/repo.env` 指向本仓库
 
 ## 开发原则
 
@@ -19,11 +20,10 @@
 
 ## AI 团队协作
 
-- Butler 负责拆解、调度、验收
-- Dex 负责主要代码实现
-- Atlas 在需求不清或需要调研时先补背景
-- Rowan 在需要说明文档、README、交付文本时介入
-- Quinn 负责状态汇总、待办和收口
+- Halibut 负责拆解、调度、验收
+- Calamitas 负责仓库摸排、问题复现和首轮实现
+- Solin 负责架构与测试门槛
+- Gloria 负责收尾集成、文档和交付整理
 
 ## 新项目落地格式
 
@@ -33,3 +33,4 @@
 2. 必要的源码目录
 3. 最小可运行或可验证骨架
 4. 该项目自己的简短说明
+5. 如由 OpenClaw 团队创建，对应案例目录会写在 `workspace-team/cases/<case-id>/`
