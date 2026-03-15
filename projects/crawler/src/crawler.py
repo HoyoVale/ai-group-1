@@ -167,6 +167,7 @@ class Crawler:
             # Sites that block requests (need Playwright)
             "wikipedia.org",
             "wikidata.org",
+            "quora.com",
         ]
         parsed = urlparse(url)
         return any(domain in parsed.netloc.lower() for domain in dynamic_domains)

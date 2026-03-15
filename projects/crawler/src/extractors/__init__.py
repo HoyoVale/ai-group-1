@@ -24,6 +24,7 @@ from .github import GithubExtractor
 from .gitee import GiteeExtractor
 from .zhihu import ZhihuExtractor
 from .stackoverflow import StackoverflowExtractor
+from .quora import QuoraExtractor
 
 
 # Registry of all extractors with their priorities
@@ -39,6 +40,7 @@ EXTRACTOR_REGISTRY: List[Type[BaseExtractor]] = [
     ZhihuExtractor,    # Priority 75 - Zhihu Q&A
     BaiduExtractor,    # Priority 70 - Baidu search results
     QuarkExtractor,    # Priority 65 - Quark search/cloud
+    QuoraExtractor,    # Priority 70 - Quora Q&A
     SohuExtractor,     # Priority 60 - Sohu search/article
     CsdnExtractor,     # Priority 70 - CSDN blog
     CnblogsExtractor,  # Priority 70 - 博客园
@@ -86,6 +88,7 @@ def _get_extractor_by_type(site_type: str) -> Optional[Type[BaseExtractor]]:
         "douyin": DouyinExtractor,
         "sohu": SohuExtractor,
         "quark": QuarkExtractor,
+        "quora": QuoraExtractor,
         "csdn": CsdnExtractor,
         "cnblogs": CnblogsExtractor,
         "juejin": JuejinExtractor,
@@ -170,6 +173,7 @@ __all__ = [
     "GiteeExtractor",
     "ZhihuExtractor",
     "StackoverflowExtractor",
+    "QuoraExtractor",
     "get_extractor",
     "get_extractor_for_playwright",
     "EXTRACTOR_REGISTRY",
