@@ -11,6 +11,7 @@
 ## 建议结构
 
 ```text
+.github/workflows/  仓库级 CI workflow
 projects/   各个独立项目
 shared/     可复用脚本、模板、公共资源
 docs/       仓库级文档、规划、决策记录
@@ -31,3 +32,9 @@ docs/       仓库级文档、规划、决策记录
 4. 并行开发时优先用分支或 `git worktree`
 5. 不要把无关项目混进同一个目录
 6. OpenClaw 团队工作区负责规则与案例，实际业务源码默认写在本仓库 `projects/` 下
+
+## CI
+
+- 当前已接入 `crawler CI` workflow：[crawler-ci.yml](/home/hoyo/ai-group-1/.github/workflows/crawler-ci.yml)
+- 该 workflow 会在 `projects/crawler/` 相关变更推送到 `main`、`agent/**`、`feature/**` 时自动运行
+- workflow 名和 job 名都显式带 `crawler`，便于 OpenClaw 的 GitHub Actions bridge 自动映射到 `crawler` 项目

@@ -39,6 +39,12 @@ conda activate crawler
 python3 -m pip install -r requirements.txt
 ```
 
+### 运行测试
+
+```bash
+python3 -m pytest tests -q
+```
+
 ### 依赖兼容说明
 
 - `requirements.txt` 会自动加载 `constraints.txt`，约束 `requests / urllib3 / charset-normalizer / chardet` 的兼容区间。
@@ -124,6 +130,12 @@ crawler/
 - 项目目录：`~/ai-group-1/projects/crawler/`（只包含代码）
 - 爬取结果：`~/Downloads/crawler-output/`
 - Downloads：`~/Downloads/`
+
+## CI
+
+- 仓库根目录已新增 `crawler CI` workflow：[crawler-ci.yml](/home/hoyo/ai-group-1/.github/workflows/crawler-ci.yml)
+- 该 workflow 会在 GitHub Actions 中运行 `python -m pytest tests -q`
+- workflow 名和 job 名都带 `crawler`，OpenClaw 的 GitHub Actions bridge 可以直接把失败 run 识别成 `crawler` 项目的 `ci/test regression`
 
 ## TODO
 
