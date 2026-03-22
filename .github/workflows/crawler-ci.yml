@@ -16,6 +16,12 @@ on:
       - "projects/crawler/**"
       - ".github/workflows/crawler-ci.yml"
   workflow_dispatch:
+    inputs:
+      force_fail:
+        description: "Force a controlled failure for OpenClaw CI bridge validation"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -63,3 +69,9 @@ jobs:
 
       - name: Run crawler pytest suite
         run: python -m pytest tests -q
+
+      - name: Force controlled failure for bridge validation
+        if: ${{ inputs.force_fail }}
+        run: |
+          echo "Forced failure for OpenClaw bridge validation" >&2
+          exit 1

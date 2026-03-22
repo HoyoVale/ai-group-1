@@ -38,3 +38,4 @@ docs/       仓库级文档、规划、决策记录
 - 当前已接入 `crawler CI` workflow：[crawler-ci.yml](/home/hoyo/ai-group-1/.github/workflows/crawler-ci.yml)
 - 该 workflow 会在 `projects/crawler/` 相关变更推送到 `main`、`agent/**`、`feature/**` 时自动运行
 - workflow 名和 job 名都显式带 `crawler`，便于 OpenClaw 的 GitHub Actions bridge 自动映射到 `crawler` 项目
+- `workflow_dispatch` 支持 `force_fail=true`，可用于 OpenClaw 受控制造一次失败 run，验证 `ci-regression` bridge 链路

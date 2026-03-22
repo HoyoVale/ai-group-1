@@ -136,6 +136,7 @@ crawler/
 - 仓库根目录已新增 `crawler CI` workflow：[crawler-ci.yml](/home/hoyo/ai-group-1/.github/workflows/crawler-ci.yml)
 - 该 workflow 会在 GitHub Actions 中运行 `python -m pytest tests -q`
 - workflow 名和 job 名都带 `crawler`，OpenClaw 的 GitHub Actions bridge 可以直接把失败 run 识别成 `crawler` 项目的 `ci/test regression`
+- 该 workflow 也支持 `workflow_dispatch(force_fail=true)`，专门用于 OpenClaw 受控验证 CI 失败桥接
 
 ## TODO
 
